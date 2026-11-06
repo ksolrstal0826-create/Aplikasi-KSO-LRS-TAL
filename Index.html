@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Portal ERP KSO LRS-TAL</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Tailwind CSS & FontAwesome -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#f0fdf4', 500: '#15803d', 600: '#166534', 700: '#14532d', 900: '#052e16' },
+            mining: { 800: '#1e293b', 900: '#0f172a' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .badge { @apply px-2 py-0.5 text-xs font-semibold rounded-full inline-flex items-center gap-1; }
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans antialiased h-screen flex flex-col overflow-hidden">
+
+  <!-- TOPBAR -->
+  <header class="bg-mining-900 text-white border-b border-slate-700 px-6 py-3 flex items-center justify-between shrink-0 shadow-md">
+    <div class="flex items-center space-x-3">
+      <img id="comp-logo" src="https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=160&q=80" alt="Logo" class="w-10 h-10 rounded-lg object-cover border border-amber-400">
+      <div>
+        <h1 id="comp-name" class="font-bold text-lg leading-tight tracking-wide text-amber-400">KSO LRS-TAL</h1>
+        <p class="text-xs text-slate-400">Integrated Mining, Asset & Fleet Operations</p>
+      </div>
+    </div>
+    <div class="flex items-center space-x-4">
+      <button onclick="refreshData()" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-2 rounded-lg border border-slate-700 transition">
+        <i id="refresh-icon" class="fa-solid fa-arrows-rotate"></i> Sinkronisasi Data
+      </button>
+      <div class="text-right hidden sm:block">
+        <span class="text-xs font-medium text-emerald-400 flex items-center justify-end gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Cloud Google Sheet Aktif
+        </span>
+        <span class="text-[11px] text-slate-400" id="current-clock">Site Lahat - GMT+7</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="flex flex-1 overflow-hidden">
+    <!-- SIDEBAR NAV -->
+    <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col shrink-0 border-r border-slate-800">
+      <nav class="p-3 space-y-1.5 flex-1 overflow-y-auto custom-scroll text-sm">
+        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg bg-emerald-700 text-white font-medium transition">
+          <i class="fa-solid fa-chart-pie w-5 text-center"></i> Ringkasan Eksekutif
+        </button>
+        <button onclick="switchTab('employees')" id="nav-employees" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 transition">
+          <i class="fa-solid fa-users w-5 text-center"></i> SDM & Karyawan
+        </button>
+        <button onclick="switchTab('assets')" id="nav-assets" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 transition">
+          <i class="fa-solid fa-truck-monster w-5 text-center"></i> Aset & Alat Berat
+        </button>
+        <button onclick="switchTab('assignments')" id="nav-assignments" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 transition">
+          <i class="fa-solid fa-clipboard-check w-5 text-center"></i> Peminjaman & Servis
+        </button>
+        <button onclick="switchTab('finance')" id="nav-finance" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 transition">
+          <i class="fa-solid fa-wallet w-5 text-center"></i> Rekening & Keuangan
+        </button>
+        <button onclick="switchTab('settings')" id="nav-settings" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 transition">
+          <i class="fa-solid fa-sliders w-5 text-center"></i> Profil Perusahaan
+        </button>
+      </nav>
+      <div class="p-4 bg-slate-950 border-t border-slate-800 text-xs text-slate-400">
+        <p class="font-semibold text-slate-200">Site Lahat, Sumsel</p>
+        <p>Konsesi Pit Barat & Workshop</p>
+      </div>
+    </aside>
+
+    <!-- MAIN WORKSPACE -->
+    <main class="flex-1 overflow-y-auto p-6 custom-scroll">
+
+      <!-- LOADING STATE -->
+      <div id="loading" class="flex flex-col items-center justify-center h-64 space-y-3">
+        <i class="fa-solid fa-circle-notch fa-spin text-3xl text-emerald-600"></i>
+        <p class="text-sm text-slate-500 font-medium">Memuat data dari Google Spreadsheet...</p>
+      </div>
+
+      <!-- TAB 1: DASHBOARD -->
+      <section id="view-dashboard" class="hidden space-y-6">
+        <!-- METRIC CARDS -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shrink-0"><i class="fa-solid fa-users"></i></div>
+            <div>
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Total Karyawan</p>
+              <h3 id="stat-total-emp" class="text-2xl font-bold text-slate-800">0</h3>
+              <p class="text-[11px] text-emerald-600 font-medium">Site Lahat & Jakarta HO</p>
+            </div>
+          </div>
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shrink-0"><i class="fa-solid fa-truck-front"></i></div>
+            <div>
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Total Unit Aset</p>
+              <h3 id="stat-total-asset" class="text-2xl font-bold text-slate-800">0</h3>
+              <p id="stat-asset-active" class="text-[11px] text-slate-500">0 Unit Beroperasi</p>
+            </div>
+          </div>
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl shrink-0"><i class="fa-solid fa-coins"></i></div>
+            <div>
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Nilai Perolehan Aset</p>
+              <h3 id="stat-total-asset-val" class="text-lg font-bold text-slate-800">Rp 0</h3>
+              <p class="text-[11px] text-slate-400">Heavy equipment & fleet</p>
+            </div>
+          </div>
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shrink-0"><i class="fa-solid fa-building-columns"></i></div>
+            <div>
+              <p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Total Kas & Bank</p>
+              <h3 id="stat-total-cash" class="text-lg font-bold text-slate-800">Rp 0</h3>
+              <p class="text-[11px] text-emerald-600 font-medium">3 Akun Terverifikasi</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- REKENING MINI CARDS -->
+        <div>
+          <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Status Likuiditas Rekening Kas Tambang</h4>
+          <div id="dashboard-bank-cards" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+        </div>
+
+        <!-- DUAL TABLE SUMMARY -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Aset Operasional -->
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-gears text-amber-500"></i> Aset Tambang & Lokasi</h3>
+              <button onclick="switchTab('assets')" class="text-xs text-emerald-600 font-medium hover:underline">Lihat Semua &rarr;</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead><tr class="text-slate-400 border-b pb-2"><th class="pb-2">Kode</th><th class="pb-2">Nama Unit</th><th class="pb-2">Status</th><th class="pb-2 text-right">Nilai</th></tr></thead>
+                <tbody id="dash-asset-rows" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Transaksi Terakhir -->
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-receipt text-blue-500"></i> Transaksi Finansial Terkini</h3>
+              <button onclick="switchTab('finance')" class="text-xs text-emerald-600 font-medium hover:underline">Semua Transaksi &rarr;</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead><tr class="text-slate-400 border-b pb-2"><th class="pb-2">Tanggal</th><th class="pb-2">Keterangan</th><th class="pb-2">Tipe</th><th class="pb-2 text-right">Total</th></tr></thead>
+                <tbody id="dash-tx-rows" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: KARYAWAN -->
+      <section id="view-employees" class="hidden space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div>
+            <h2 class="text-xl font-bold text-slate-800">Direktori SDM & Karyawan</h2>
+            <p class="text-xs text-slate-500">Data identitas personil tambang, kompetensi minerba & sertifikasi</p>
+          </div>
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+            <input type="text" id="search-emp" onkeyup="filterEmployees()" placeholder="Cari nama, NIP, jabatan..." class="text-xs px-3 py-2 border border-slate-300 rounded-lg w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <button onclick="openEmployeeModal()" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3.5 py-2 rounded-lg flex items-center gap-1.5 whitespace-nowrap">
+              <i class="fa-solid fa-user-plus"></i> Tambah Karyawan
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider border-b border-slate-200">
+                <tr>
+                  <th class="py-3 px-4">Karyawan</th>
+                  <th class="py-3 px-4">Jabatan & Dept</th>
+                  <th class="py-3 px-4">Lokasi & Status</th>
+                  <th class="py-3 px-4">Kontak</th>
+                  <th class="py-3 px-4">Sertifikasi</th>
+                  <th class="py-3 px-4 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="table-emp-body" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: ASET & ALAT BERAT -->
+      <section id="view-assets" class="hidden space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div>
+            <h2 class="text-xl font-bold text-slate-800">Inventaris Aset & Alat Berat Tambang</h2>
+            <p class="text-xs text-slate-500">Daftar unit fleet, kendaraan ringan, survey geodetik & IT</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <select id="filter-asset-status" onchange="renderAssetsTable()" class="text-xs px-3 py-2 border border-slate-300 rounded-lg bg-white">
+              <option value="">Semua Status</option>
+              <option value="Aktif">Aktif</option>
+              <option value="Diperbaiki">Diperbaiki</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="asset-cards-grid"></div>
+      </section>
+
+      <!-- TAB 4: PEMINJAMAN & SERVIS -->
+      <section id="view-assignments" class="hidden space-y-6">
+        <div>
+          <h2 class="text-xl font-bold text-slate-800">Peminjaman Unit & Log Pemeliharaan</h2>
+          <p class="text-xs text-slate-500">Riwayat serah terima aset ke personil dan servis berkala vendor</p>
+        </div>
+
+        <!-- DUAL SECTION -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Assignments -->
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
+            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-handshake text-emerald-600"></i> Serah Terima Aset ke Karyawan</h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead><tr class="border-b text-slate-400 pb-2"><th class="pb-2">Aset</th><th class="pb-2">Penerima</th><th class="pb-2">Tgl Pinjam</th><th class="pb-2">Kondisi</th></tr></thead>
+                <tbody id="asg-table-body" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Maintenance -->
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
+            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-wrench text-amber-600"></i> Riwayat Perawatan & Servis Berkala</h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead><tr class="border-b text-slate-400 pb-2"><th class="pb-2">Unit</th><th class="pb-2">Tanggal</th><th class="pb-2">Bengkel / Vendor</th><th class="pb-2 text-right">Biaya</th></tr></thead>
+                <tbody id="mnt-table-body" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: KEUANGAN & KAS -->
+      <section id="view-finance" class="hidden space-y-6">
+        <div class="flex justify-between items-center">
+          <div>
+            <h2 class="text-xl font-bold text-slate-800">Manajemen Kas & Rekening Bank</h2>
+            <p class="text-xs text-slate-500">Arus kas operasional tambang, bahan bakar solar, & payroll</p>
+          </div>
+          <button onclick="openTxModal()" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg flex items-center gap-1.5 shadow">
+            <i class="fa-solid fa-plus-circle"></i> Catat Transaksi Baru
+          </button>
+        </div>
+
+        <div id="finance-bank-grid" class="grid grid-cols-1 md:grid-cols-3 gap-5"></div>
+
+        <!-- Tabel Transaksi -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+          <h3 class="font-bold text-slate-800 text-sm mb-4">Buku Mutasi Kas & Transaksi</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-600 font-semibold border-b">
+                <tr>
+                  <th class="p-3">ID / Tanggal</th>
+                  <th class="p-3">Rekening</th>
+                  <th class="p-3">Pihak Terkait</th>
+                  <th class="p-3">Deskripsi</th>
+                  <th class="p-3">Tipe</th>
+                  <th class="p-3 text-right">Nominal Pokok</th>
+                  <th class="p-3 text-right">Admin Fee</th>
+                  <th class="p-3 text-right">Total Net</th>
+                </tr>
+              </thead>
+              <tbody id="tx-table-body" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 6: SETTINGS -->
+      <section id="view-settings" class="hidden max-w-2xl bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+        <h2 class="text-lg font-bold text-slate-800 border-b pb-3">Profil Perusahaan & Operasional</h2>
+        <div class="space-y-3 text-xs">
+          <div><label class="text-slate-400">Nama Perusahaan / Konsorsium</label><p id="set-name" class="font-bold text-slate-700 text-sm">-</p></div>
+          <div><label class="text-slate-400">Nomor Pokok Wajib Pajak (NPWP)</label><p id="set-npwp" class="font-mono text-slate-700">-</p></div>
+          <div><label class="text-slate-400">Alamat Operasional Tambang</label><p id="set-addr" class="text-slate-700">-</p></div>
+          <div class="grid grid-cols-2 gap-4">
+            <div><label class="text-slate-400">Email Resmi</label><p id="set-email" class="text-slate-700">-</p></div>
+            <div><label class="text-slate-400">Telepon</label><p id="set-phone" class="text-slate-700">-</p></div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODAL DETAIL KARYAWAN -->
+  <div id="modal-emp-detail" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto custom-scroll">
+      <div class="flex justify-between items-start border-b pb-3">
+        <div>
+          <h3 id="modal-emp-name" class="text-lg font-bold text-slate-800">Detail Profil</h3>
+          <p id="modal-emp-nip" class="text-xs text-slate-500"></p>
+        </div>
+        <button onclick="closeModal('modal-emp-detail')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <div id="modal-emp-content" class="space-y-3 text-xs"></div>
+      <div class="pt-3 border-t text-right">
+        <button onclick="closeModal('modal-emp-detail')" class="px-4 py-2 bg-slate-200 text-slate-700 font-medium rounded-lg text-xs">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL TAMBAH TRANSAKSI -->
+  <div id="modal-tx-add" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="font-bold text-slate-800 text-sm">Catat Mutasi / Transaksi Kas</h3>
+        <button onclick="closeModal('modal-tx-add')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="form-tx" onsubmit="submitTransaction(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block font-medium mb-1">Jenis Transaksi</label>
+          <select id="tx-type" required class="w-full px-3 py-2 border rounded-lg bg-white">
+            <option value="KELUAR">KELUAR (Pengeluaran Operasional / BBM / Servis)</option>
+            <option value="MASUK">MASUK (Pencairan Invoice / Injeksi Modal)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-medium mb-1">Rekening Bank</label>
+          <select id="tx-account" required class="w-full px-3 py-2 border rounded-lg bg-white"></select>
+        </div>
+        <div>
+          <label class="block font-medium mb-1">Pihak Terkait (Vendor / Mitra)</label>
+          <input type="text" id="tx-party" required placeholder="Contoh: PT Pertamina Patra Niaga" class="w-full px-3 py-2 border rounded-lg">
+        </div>
+        <div>
+          <label class="block font-medium mb-1">Deskripsi / Kebutuhan</label>
+          <textarea id="tx-desc" required rows="2" placeholder="Keterangan pengeluaran..." class="w-full px-3 py-2 border rounded-lg"></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-medium mb-1">Nominal (Rp)</label>
+            <input type="number" id="tx-amount" required min="1" placeholder="0" class="w-full px-3 py-2 border rounded-lg">
+          </div>
+          <div>
+            <label class="block font-medium mb-1">Biaya Admin (Rp)</label>
+            <input type="number" id="tx-admin" value="0" min="0" class="w-full px-3 py-2 border rounded-lg">
+          </div>
+        </div>
+        <div class="pt-3 border-t flex justify-end gap-2">
+          <button type="button" onclick="closeModal('modal-tx-add')" class="px-3 py-2 bg-slate-100 rounded-lg text-slate-600">Batal</button>
+          <button type="submit" id="btn-submit-tx" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700">Simpan Transaksi</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script>
+    let DATA = null;
+
+    const fmtRp = (num) => 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+    const fmtDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' }) : '-';
+
+    window.onload = function() {
+      refreshData();
+      setInterval(() => {
+        const now = new Date();
+        document.getElementById('current-clock').innerText = now.toLocaleTimeString('id-ID') + ' WIB';
+      }, 1000);
+    };
+
+    function refreshData() {
+      document.getElementById('loading').classList.remove('hidden');
+      document.getElementById('refresh-icon').classList.add('fa-spin');
+
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(handleDataLoaded)
+          .withFailureHandler(err => {
+            alert('Gagal memuat data: ' + err.message);
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('refresh-icon').classList.remove('fa-spin');
+          })
+          .getSystemData();
+      } else {
+        // Fallback testing lokal jika di luar environment Apps Script
+        console.warn('Running outside Google Apps Script, please deploy inside Sheet.');
+      }
+    }
+
+    function handleDataLoaded(res) {
+      DATA = res;
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('refresh-icon').classList.remove('fa-spin');
+
+      // Setup Brand Settings
+      if (DATA.settings) {
+        document.getElementById('comp-name').innerText = DATA.settings.company_name || 'KSO LRS-TAL';
+        if (DATA.settings.company_logo) document.getElementById('comp-logo').src = DATA.settings.company_logo;
+        document.getElementById('set-name').innerText = DATA.settings.company_name || '-';
+        document.getElementById('set-npwp').innerText = DATA.settings.company_npwp || '-';
+        document.getElementById('set-addr').innerText = DATA.settings.company_address || '-';
+        document.getElementById('set-email').innerText = DATA.settings.company_email || '-';
+        document.getElementById('set-phone').innerText = DATA.settings.company_phone || '-';
+      }
+
+      renderDashboard();
+      renderEmployeesTable();
+      renderAssetsTable();
+      renderAssignmentsAndMaintenance();
+      renderFinance();
+
+      switchTab('dashboard');
+    }
+
+    function switchTab(tabId) {
+      ['dashboard', 'employees', 'assets', 'assignments', 'finance', 'settings'].forEach(t => {
+        const el = document.getElementById('view-' + t);
+        const nav = document.getElementById('nav-' + t);
+        if (t === tabId) {
+          el.classList.remove('hidden');
+          nav.className = "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg bg-emerald-700 text-white font-medium transition shadow-sm";
+        } else {
+          el.classList.add('hidden');
+          nav.className = "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 text-slate-300 transition";
+        }
+      });
+    }
+
+    function renderDashboard() {
+      document.getElementById('stat-total-emp').innerText = DATA.employees.length;
+      document.getElementById('stat-total-asset').innerText = DATA.assets.length;
+      
+      const activeAssets = DATA.assets.filter(a => a.status === 'Aktif').length;
+      document.getElementById('stat-asset-active').innerText = `${activeAssets} Unit Beroperasi Normal`;
+
+      const totalVal = DATA.assets.reduce((sum, a) => sum + (a.purchase_cost || 0), 0);
+      document.getElementById('stat-total-asset-val').innerText = fmtRp(totalVal);
+
+      const totalCash = DATA.bank_accounts.reduce((sum, b) => sum + (b.current_balance || 0), 0);
+      document.getElementById('stat-total-cash').innerText = fmtRp(totalCash);
+
+      // Render Bank Mini Cards
+      const bankContainer = document.getElementById('dashboard-bank-cards');
+      bankContainer.innerHTML = DATA.bank_accounts.map(acc => `
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${acc.bank_name}</span>
+            <h4 class="font-bold text-slate-800 text-base">${fmtRp(acc.current_balance)}</h4>
+            <p class="text-[11px] text-slate-500 font-mono">${acc.account_number}</p>
+          </div>
+          <div class="w-10 h-10 rounded-lg bg-${acc.color || 'blue'}-50 text-${acc.color || 'blue'}-600 flex items-center justify-center">
+            <i class="fa-solid fa-building-columns"></i>
+          </div>
+        </div>
+      `).join('');
+
+      // Top Assets
+      const dashAssetRows = document.getElementById('dash-asset-rows');
+      dashAssetRows.innerHTML = DATA.assets.slice(0, 4).map(a => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-2 font-mono font-semibold text-slate-600">${a.asset_code}</td>
+          <td class="py-2 font-medium text-slate-800">${a.asset_name}</td>
+          <td class="py-2"><span class="badge ${a.status === 'Aktif' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${a.status}</span></td>
+          <td class="py-2 text-right font-medium text-slate-700">${fmtRp(a.purchase_cost)}</td>
+        </tr>
+      `).join('');
+
+      // Top Transactions
+      const dashTxRows = document.getElementById('dash-tx-rows');
+      dashTxRows.innerHTML = DATA.finance_transactions.slice(-4).reverse().map(t => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-2 font-mono text-slate-500">${t.date}</td>
+          <td class="py-2 font-medium text-slate-800 truncate max-w-[160px]">${t.description}</td>
+          <td class="py-2"><span class="badge ${t.type === 'MASUK' ? 'bg-blue-100 text-blue-700' : 'bg-rose-100 text-rose-700'}">${t.type}</span></td>
+          <td class="py-2 text-right font-semibold ${t.type === 'MASUK' ? 'text-blue-600' : 'text-slate-800'}">${fmtRp(t.total_amount)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderEmployeesTable(filtered = null) {
+      const list = filtered || DATA.employees;
+      const tbody = document.getElementById('table-emp-body');
+      tbody.innerHTML = list.map(e => `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="py-3 px-4">
+            <div class="font-bold text-slate-800">${e.nama}</div>
+            <div class="text-[11px] text-slate-400 font-mono">NIP: ${e.nip} • NIK: ${e.nik}</div>
+          </td>
+          <td class="py-3 px-4">
+            <div class="font-medium text-slate-700">${e.jabatan}</div>
+            <div class="text-[11px] text-slate-400">${e.departemen}</div>
+          </td>
+          <td class="py-3 px-4">
+            <div class="text-slate-700">${e.lokasi_kerja}</div>
+            <span class="badge ${e.status_kepegawaian.includes('Tetap') ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}">${e.status_kepegawaian}</span>
+          </td>
+          <td class="py-3 px-4">
+            <div class="font-mono text-slate-600">${e.no_hp}</div>
+            <div class="text-[11px] text-slate-400 truncate max-w-[140px]">${e.email}</div>
+          </td>
+          <td class="py-3 px-4">
+            <div class="flex flex-wrap gap-1">
+              ${(e.sertifikasi || []).map(c => `
+                <span class="badge bg-slate-100 text-slate-600 border border-slate-200" title="Expired: ${c.tgl_expired}">
+                  <i class="fa-solid fa-certificate text-amber-500"></i> ${c.nama}
+                </span>
+              `).join('') || '<span class="text-slate-400 italic text-[11px]">Tidak ada</span>'}
+            </div>
+          </td>
+          <td class="py-3 px-4 text-center">
+            <button onclick="showEmployeeDetail('${e.employee_id}')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 rounded text-slate-600 font-medium text-xs">
+              Detail
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function filterEmployees() {
+      const q = document.getElementById('search-emp').value.toLowerCase();
+      const filtered = DATA.employees.filter(e => 
+        e.nama.toLowerCase().includes(q) || 
+        e.nip.toLowerCase().includes(q) || 
+        e.jabatan.toLowerCase().includes(q) || 
+        e.departemen.toLowerCase().includes(q)
+      );
+      renderEmployeesTable(filtered);
+    }
+
+    function showEmployeeDetail(id) {
+      const emp = DATA.employees.find(e => e.employee_id === id);
+      if (!emp) return;
+
+      document.getElementById('modal-emp-name').innerText = emp.nama;
+      document.getElementById('modal-emp-nip').innerText = `NIP: ${emp.nip} • Departemen: ${emp.departemen}`;
+      
+      const content = document.getElementById('modal-emp-content');
+      content.innerHTML = `
+        <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-lg border">
+          <div><span class="text-slate-400">Jabatan:</span> <p class="font-semibold text-slate-700">${emp.jabatan}</p></div>
+          <div><span class="text-slate-400">Lokasi Penugasan:</span> <p class="font-semibold text-slate-700">${emp.lokasi_kerja}</p></div>
+          <div><span class="text-slate-400">Pendidikan:</span> <p class="font-semibold text-slate-700">${emp.pendidikan_terakhir} - ${emp.instansi_pendidikan} (${emp.jurusan})</p></div>
+          <div><span class="text-slate-400">Status Pegawai:</span> <p class="font-semibold text-slate-700">${emp.status_kepegawaian}</p></div>
+          <div><span class="text-slate-400">Rekening Payroll:</span> <p class="font-mono text-slate-700">${emp.nama_bank} - ${emp.no_rekening}</p></div>
+          <div><span class="text-slate-400">Kontak Darurat:</span> <p class="text-slate-700">${emp.kontak_darurat || '-'}</p></div>
+        </div>
+
+        <div class="pt-2">
+          <h4 class="font-bold text-slate-700 text-xs mb-2">Daftar Lisensi & Sertifikasi Kompetensi</h4>
+          <div class="space-y-2">
+            ${(emp.sertifikasi && emp.sertifikasi.length > 0) ? emp.sertifikasi.map(c => `
+              <div class="p-2.5 rounded-lg border border-slate-200 bg-white flex justify-between items-center">
+                <div>
+                  <p class="font-bold text-slate-800">${c.nama}</p>
+                  <p class="text-[11px] text-slate-400">Penerbit: ${c.penerbit} • Berlaku s.d: <strong class="text-amber-600">${c.tgl_expired || '-'}</strong></p>
+                </div>
+                ${c.file ? `<a href="${c.file}" target="_blank" class="px-2 py-1 bg-blue-50 text-blue-600 rounded text-[11px] font-semibold"><i class="fa-solid fa-file-pdf"></i> Dokumen</a>` : ''}
+              </div>
+            `).join('') : '<p class="text-slate-400 italic">Belum ada dokumen sertifikat terdaftar.</p>'}
+          </div>
+        </div>
+      `;
+      document.getElementById('modal-emp-detail').classList.remove('hidden');
+    }
+
+    function renderAssetsTable() {
+      const stFilter = document.getElementById('filter-asset-status').value;
+      const list = DATA.assets.filter(a => !stFilter || a.status === stFilter);
+      const grid = document.getElementById('asset-cards-grid');
+
+      grid.innerHTML = list.map(a => {
+        const loc = DATA.locations.find(l => l.location_id === a.location_id)?.location_name || 'Site Lahat';
+        const cat = DATA.categories.find(c => c.category_id === a.category_id)?.category_name || '-';
+        return `
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
+            <div class="flex justify-between items-start">
+              <div>
+                <span class="font-mono text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">${a.asset_code}</span>
+                <h3 class="font-bold text-slate-800 text-sm mt-1">${a.asset_name}</h3>
+                <p class="text-[11px] text-slate-400">${a.brand} - ${a.model_number}</p>
+              </div>
+              <span class="badge ${a.status === 'Aktif' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${a.status}</span>
+            </div>
+            <div class="text-xs space-y-1 py-2 border-y border-slate-100 text-slate-600">
+              <div class="flex justify-between"><span class="text-slate-400">Serial No:</span> <span class="font-mono font-medium">${a.serial_number}</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Lokasi:</span> <span class="font-medium">${loc}</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Nilai Perolehan:</span> <span class="font-bold text-slate-700">${fmtRp(a.purchase_cost)}</span></div>
+            </div>
+            <p class="text-[11px] text-slate-500 italic truncate">${a.notes || 'Tidak ada catatan.'}</p>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderAssignmentsAndMaintenance() {
+      // Peminjaman
+      const asgBody = document.getElementById('asg-table-body');
+      asgBody.innerHTML = DATA.assignments.map(asg => {
+        const ast = DATA.assets.find(a => a.asset_id === asg.asset_id);
+        const emp = DATA.employees.find(e => e.employee_id === asg.employee_id);
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="py-2.5">
+              <div class="font-bold text-slate-800">${ast?.asset_name || '-'}</div>
+              <div class="text-[11px] font-mono text-slate-400">${ast?.asset_code || ''}</div>
+            </td>
+            <td class="py-2.5 font-medium text-slate-700">${emp?.nama || '-'}</td>
+            <td class="py-2.5 font-mono text-slate-500">${asg.assigned_date}</td>
+            <td class="py-2.5 text-slate-500 italic max-w-xs truncate">${asg.condition_notes}</td>
+          </tr>
+        `;
+      }).join('');
+
+      // Maintenance
+      const mntBody = document.getElementById('mnt-table-body');
+      mntBody.innerHTML = DATA.maintenances.map(m => {
+        const ast = DATA.assets.find(a => a.asset_id === m.asset_id);
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="py-2.5 font-medium text-slate-800">${ast?.asset_name || 'Unit ID: ' + m.asset_id}</td>
+            <td class="py-2.5 font-mono text-slate-500">${m.maintenance_date}</td>
+            <td class="py-2.5 text-slate-700">${m.vendor_name}</td>
+            <td class="py-2.5 text-right font-bold text-amber-700">${fmtRp(m.cost)}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderFinance() {
+      const grid = document.getElementById('finance-bank-grid');
+      const select = document.getElementById('tx-account');
+      select.innerHTML = '';
+
+      grid.innerHTML = DATA.bank_accounts.map(acc => {
+        select.innerHTML += `<option value="${acc.account_id}">${acc.bank_name} - ${acc.account_number}</option>`;
+        return `
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">${acc.bank_name}</span>
+              <span class="w-3 h-3 rounded-full bg-${acc.color || 'blue'}-500"></span>
+            </div>
+            <h3 class="text-2xl font-bold text-slate-800">${fmtRp(acc.current_balance)}</h3>
+            <p class="text-xs font-mono text-slate-400">${acc.account_number}</p>
+            <p class="text-[11px] text-slate-500 pt-2 border-t">${acc.account_holder}</p>
+          </div>
+        `;
+      }).join('');
+
+      // Tabel Transaksi
+      const tbody = document.getElementById('tx-table-body');
+      tbody.innerHTML = DATA.finance_transactions.slice().reverse().map(t => {
+        const acc = DATA.bank_accounts.find(a => a.account_id === t.account_id);
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="p-3">
+              <div class="font-mono font-bold text-slate-700">${t.transaction_id}</div>
+              <div class="text-[11px] text-slate-400">${t.date}</div>
+            </td>
+            <td class="p-3 font-medium text-slate-700">${acc?.bank_name || t.account_id}</td>
+            <td class="p-3 font-semibold text-slate-800">${t.party_name}</td>
+            <td class="p-3 text-slate-600 max-w-xs">${t.description}</td>
+            <td class="p-3"><span class="badge ${t.type === 'MASUK' ? 'bg-blue-100 text-blue-700' : 'bg-rose-100 text-rose-700'}">${t.type}</span></td>
+            <td class="p-3 text-right font-mono">${fmtRp(t.amount)}</td>
+            <td class="p-3 text-right font-mono text-slate-400">${fmtRp(t.admin_fee)}</td>
+            <td class="p-3 text-right font-mono font-bold ${t.type === 'MASUK' ? 'text-blue-600' : 'text-slate-800'}">${fmtRp(t.total_amount)}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function openTxModal() { document.getElementById('modal-tx-add').classList.remove('hidden'); }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    function submitTransaction(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btn-submit-tx');
+      btn.innerText = 'Menyimpan...';
+      btn.disabled = true;
+
+      const payload = {
+        type: document.getElementById('tx-type').value,
+        account_id: document.getElementById('tx-account').value,
+        party_name: document.getElementById('tx-party').value,
+        description: document.getElementById('tx-desc').value,
+        amount: Number(document.getElementById('tx-amount').value),
+        admin_fee: Number(document.getElementById('tx-admin').value || 0),
+        date: new Date().toISOString().split('T')[0]
+      };
+
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(res => {
+            alert('Sukses: ' + res.message);
+            closeModal('modal-tx-add');
+            document.getElementById('form-tx').reset();
+            btn.innerText = 'Simpan Transaksi';
+            btn.disabled = false;
+            refreshData();
+          })
+          .withFailureHandler(err => {
+            alert('Gagal: ' + err.message);
+            btn.innerText = 'Simpan Transaksi';
+            btn.disabled = false;
+          })
+          .apiAddTransaction(payload);
+      }
+    }
+  </script>
+</body>
+</html>
